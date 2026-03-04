@@ -1,8 +1,8 @@
 const CACHE_NAME = 'fintrack-cache-v1';
 const urlsToCache = [
-    './',
-    './index.html',
-    './manifest.json'
+    '/',
+    '/index.html',
+    '/manifest.json'
 ];
 
 // Install event: Caches the basic files
@@ -24,4 +24,5 @@ self.addEventListener('fetch', event => {
                 return response || fetch(event.request);
             })
     );
+
 });
