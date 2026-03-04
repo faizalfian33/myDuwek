@@ -1,0 +1,1265 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Duwek - Personal Finance Tracker by FA</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <link rel="manifest" href="./manifest.json">
+    <meta name="theme-color" content="#3b82f6">
+    <link rel="apple-touch-icon" href="./icon-192.png">
+    <script>
+        tailwind.config = {
+            darkMode: 'class', // Enabled Dark Mode
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#3b82f6', // blue-500
+                        income: '#10b981',  // emerald-500
+                        expense: '#f43f5e', // rose-500
+                        dark: '#0f172a',    // slate-900
+                        surface: '#ffffff',
+                        background: '#f8fafc' // slate-50
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        body { font-family: 'Inter', sans-serif; }
+        
+        /* Hide scrollbar for clean UI but allow scrolling */
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        
+        .view-section { display: none; animation: fadeIn 0.3s ease-in-out; }
+        .view-section.active { display: block; }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Modal styling */
+        .modal { display: none; }
+        .modal.active { display: flex; animation: fadeInModal 0.2s forwards; }
+        @keyframes fadeInModal {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        .modal-content { transform: scale(0.95); transition: transform 0.2s; }
+        .modal.active .modal-content { transform: scale(1); }
+        
+        /* Toast styling */
+        .toast-enter { animation: slideUpFade 0.3s ease-out forwards; }
+        .toast-exit { animation: slideDownFade 0.3s ease-in forwards; }
+        @keyframes slideUpFade {
+            from { transform: translateY(100%); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+        @keyframes slideDownFade {
+            from { transform: translateY(0); opacity: 1; }
+            to { transform: translateY(100%); opacity: 0; }
+        }
+    </style>
+</head>
+<body class="text-slate-800 dark:text-slate-200 bg-background dark:bg-slate-900 h-screen flex overflow-hidden selection:bg-primary selection:text-white transition-colors duration-200">
+
+    <nav class="bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 w-full md:w-64 h-16 md:h-full fixed md:relative bottom-0 z-40 flex md:flex-col shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] md:shadow-none transition-all">
+        <div class="hidden md:flex items-center gap-3 px-6 py-6 mb-4">
+            <div class="bg-primary text-white p-2 rounded-xl">
+                <i class="ph-bold ph-wallet text-2xl"></i>
+            </div>
+            <h1 class="text-xl font-bold tracking-tight text-dark dark:text-white">FinTrack</h1>
+        </div>
+        
+        <div class="flex md:flex-col w-full h-full md:h-auto justify-around md:justify-start px-2 md:px-4 py-2 md:gap-2">
+            <button onclick="App.ui.switchView('dashboard')" class="nav-btn active flex flex-col md:flex-row items-center gap-1 md:gap-3 p-2 md:p-3 rounded-xl text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-primary transition-colors data-[active=true]:bg-blue-50 dark:data-[active=true]:bg-blue-900/20 data-[active=true]:text-primary w-full md:w-auto" data-target="dashboard" data-active="true">
+                <i class="ph ph-squares-four text-2xl md:text-xl"></i>
+                <span class="text-[10px] md:text-sm font-medium">Dashboard</span>
+            </button>
+            <button onclick="App.ui.switchView('transactions')" class="nav-btn flex flex-col md:flex-row items-center gap-1 md:gap-3 p-2 md:p-3 rounded-xl text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-primary transition-colors data-[active=true]:bg-blue-50 dark:data-[active=true]:bg-blue-900/20 data-[active=true]:text-primary w-full md:w-auto" data-target="transactions">
+                <i class="ph ph-list-dashes text-2xl md:text-xl"></i>
+                <span class="text-[10px] md:text-sm font-medium">History</span>
+            </button>
+            <button onclick="App.ui.switchView('calendar')" class="nav-btn flex flex-col md:flex-row items-center gap-1 md:gap-3 p-2 md:p-3 rounded-xl text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-primary transition-colors data-[active=true]:bg-blue-50 dark:data-[active=true]:bg-blue-900/20 data-[active=true]:text-primary w-full md:w-auto" data-target="calendar">
+                <i class="ph ph-calendar-blank text-2xl md:text-xl"></i>
+                <span class="text-[10px] md:text-sm font-medium">Calendar</span>
+            </button>
+            
+            <div class="md:hidden flex items-center justify-center -mt-8 relative group">
+                <div class="absolute bottom-16 flex-col gap-2 items-center hidden group-hover:flex group-focus-within:flex transition-all">
+                    <button onclick="App.ui.openQuickAdd('expense')" class="bg-expense text-white w-10 h-10 rounded-full shadow-lg flex items-center justify-center" title="Add Expense"><i class="ph-bold ph-minus"></i></button>
+                    <button onclick="App.ui.openQuickAdd('income')" class="bg-income text-white w-10 h-10 rounded-full shadow-lg flex items-center justify-center" title="Add Income"><i class="ph-bold ph-plus"></i></button>
+                    <button onclick="App.ui.openQuickAdd('transfer')" class="bg-primary text-white w-10 h-10 rounded-full shadow-lg flex items-center justify-center" title="Add Transfer"><i class="ph-bold ph-arrows-left-right"></i></button>
+                </div>
+                <button class="bg-primary text-white w-14 h-14 rounded-full flex items-center justify-center shadow-lg shadow-blue-500/30 border-4 border-background dark:border-slate-900 z-50">
+                    <i class="ph-bold ph-plus text-2xl"></i>
+                </button>
+            </div>
+
+            <button onclick="App.ui.switchView('accounts')" class="nav-btn flex flex-col md:flex-row items-center gap-1 md:gap-3 p-2 md:p-3 rounded-xl text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-primary transition-colors data-[active=true]:bg-blue-50 dark:data-[active=true]:bg-blue-900/20 data-[active=true]:text-primary w-full md:w-auto" data-target="accounts">
+                <i class="ph ph-bank text-2xl md:text-xl"></i>
+                <span class="text-[10px] md:text-sm font-medium">Accounts</span>
+            </button>
+            <button onclick="App.ui.switchView('reports')" class="nav-btn flex flex-col md:flex-row items-center gap-1 md:gap-3 p-2 md:p-3 rounded-xl text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-primary transition-colors data-[active=true]:bg-blue-50 dark:data-[active=true]:bg-blue-900/20 data-[active=true]:text-primary w-full md:w-auto" data-target="reports">
+                <i class="ph ph-chart-pie-slice text-2xl md:text-xl"></i>
+                <span class="text-[10px] md:text-sm font-medium">Reports</span>
+            </button>
+            <button onclick="App.ui.switchView('settings')" class="nav-btn hidden md:flex flex-col md:flex-row items-center gap-1 md:gap-3 p-2 md:p-3 rounded-xl text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-primary transition-colors data-[active=true]:bg-blue-50 dark:data-[active=true]:bg-blue-900/20 data-[active=true]:text-primary w-full md:w-auto mt-auto" data-target="settings">
+                <i class="ph ph-gear text-2xl md:text-xl"></i>
+                <span class="text-[10px] md:text-sm font-medium">Settings</span>
+            </button>
+        </div>
+    </nav>
+
+    <main class="flex-1 h-[calc(100vh-4rem)] md:h-screen overflow-y-auto no-scrollbar pb-20 md:pb-6 relative">
+        
+        <header class="sticky top-0 z-30 bg-background/80 dark:bg-slate-900/80 backdrop-blur-md px-4 md:px-8 py-4 flex justify-between items-center hidden md:flex">
+            <h2 id="page-title" class="text-2xl font-bold text-dark dark:text-white capitalize">Dashboard</h2>
+            <button onclick="App.ui.openModal('modal-transaction')" class="bg-primary hover:bg-blue-600 text-white px-5 py-2.5 rounded-xl font-medium flex items-center gap-2 transition-colors shadow-sm shadow-blue-500/20">
+                <i class="ph-bold ph-plus"></i> New Transaction
+            </button>
+        </header>
+
+        <header class="md:hidden px-4 py-5 flex justify-between items-center bg-white dark:bg-slate-900 sticky top-0 z-30 shadow-sm dark:shadow-slate-800 border-b border-slate-200 dark:border-slate-800">
+            <h2 id="mobile-page-title" class="text-xl font-bold text-dark dark:text-white capitalize">Dashboard</h2>
+            <button onclick="App.ui.switchView('settings')" class="text-slate-500 dark:text-slate-400">
+                <i class="ph ph-gear text-2xl"></i>
+            </button>
+        </header>
+
+        <div class="px-4 md:px-8 py-4 max-w-6xl mx-auto">
+            
+            <section id="view-dashboard" class="view-section active space-y-6">
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div class="bg-white dark:bg-slate-800 p-6 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 relative overflow-hidden">
+                        <div class="absolute -right-6 -top-6 text-slate-50 dark:text-slate-700 opacity-50"><i class="ph-fill ph-wallet text-9xl"></i></div>
+                        <p class="text-sm font-medium text-slate-500 dark:text-slate-400 mb-1 relative z-10">Total Balance</p>
+                        <h3 class="text-3xl font-bold text-dark dark:text-white relative z-10" id="dash-total-balance">Rp 0</h3>
+                    </div>
+                    <div class="bg-white dark:bg-slate-800 p-6 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 flex items-center justify-between">
+                        <div>
+                            <p class="text-sm font-medium text-slate-500 dark:text-slate-400 mb-1">Income (This Month)</p>
+                            <h3 class="text-xl font-bold text-income" id="dash-monthly-income">Rp 0</h3>
+                        </div>
+                        <div class="w-12 h-12 rounded-full bg-emerald-50 dark:bg-emerald-900/30 flex items-center justify-center text-income">
+                            <i class="ph-bold ph-arrow-down-left text-xl"></i>
+                        </div>
+                    </div>
+                    <div class="bg-white dark:bg-slate-800 p-6 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 flex items-center justify-between">
+                        <div>
+                            <p class="text-sm font-medium text-slate-500 dark:text-slate-400 mb-1">Expense (This Month)</p>
+                            <h3 class="text-xl font-bold text-expense" id="dash-monthly-expense">Rp 0</h3>
+                        </div>
+                        <div class="w-12 h-12 rounded-full bg-rose-50 dark:bg-rose-900/30 flex items-center justify-center text-expense">
+                            <i class="ph-bold ph-arrow-up-right text-xl"></i>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <div class="lg:col-span-1 space-y-6">
+                        <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 p-6">
+                            <div class="flex justify-between items-center mb-4">
+                                <h3 class="text-lg font-bold text-dark dark:text-white">Accounts</h3>
+                                <button onclick="App.ui.switchView('accounts')" class="text-sm text-primary font-medium">View All</button>
+                            </div>
+                            <div id="dash-accounts-list" class="space-y-4">
+                                </div>
+                        </div>
+
+                        <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 p-6">
+                            <div class="flex justify-between items-center mb-4">
+                                <h3 class="text-lg font-bold text-dark dark:text-white">Monthly Budgets</h3>
+                            </div>
+                            <div id="dash-budgets-list" class="space-y-4">
+                                </div>
+                        </div>
+                    </div>
+
+                    <div class="lg:col-span-2 bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 p-6">
+                        <div class="flex justify-between items-center mb-4">
+                            <h3 class="text-lg font-bold text-dark dark:text-white">Recent Transactions</h3>
+                            <button onclick="App.ui.switchView('transactions')" class="text-sm text-primary font-medium">View All</button>
+                        </div>
+                        <div id="dash-recent-transactions" class="space-y-1">
+                            </div>
+                    </div>
+                </div>
+            </section>
+
+            <section id="view-accounts" class="view-section space-y-6">
+                <div class="flex justify-between items-center">
+                    <p class="text-slate-500 dark:text-slate-400">Manage your financial accounts and wallets.</p>
+                    <button onclick="App.ui.openModal('modal-account')" class="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-dark dark:text-white px-4 py-2 rounded-xl font-medium flex items-center gap-2 hover:bg-slate-50 dark:hover:bg-slate-700">
+                        <i class="ph-bold ph-plus"></i> Add Account
+                    </button>
+                </div>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4" id="accounts-grid">
+                    </div>
+            </section>
+
+            <section id="view-transactions" class="view-section space-y-6">
+                <div class="bg-white dark:bg-slate-800 p-4 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 flex flex-col md:flex-row gap-3">
+                    <div class="flex-1 relative">
+                        <i class="ph ph-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"></i>
+                        <input type="text" id="filter-search" placeholder="Search notes..." class="w-full pl-10 pr-4 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary text-sm dark:text-white">
+                    </div>
+                    <select id="filter-month" class="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2 text-sm focus:outline-none focus:border-primary dark:text-white">
+                        <option value="all">All Months</option>
+                        </select>
+                    <select id="filter-account" class="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2 text-sm focus:outline-none focus:border-primary dark:text-white">
+                        <option value="all">All Accounts</option>
+                        </select>
+                    <select id="filter-type" class="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2 text-sm focus:outline-none focus:border-primary dark:text-white">
+                        <option value="all">All Types</option>
+                        <option value="income">Income</option>
+                        <option value="expense">Expense</option>
+                        <option value="transfer">Transfer</option>
+                    </select>
+                </div>
+
+                <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 overflow-hidden">
+                    <div id="transactions-list" class="divide-y divide-slate-100 dark:divide-slate-700">
+                        </div>
+                </div>
+            </section>
+
+            <section id="view-calendar" class="view-section space-y-6">
+                <div class="flex justify-between items-center mb-6">
+                    <p class="text-slate-500 dark:text-slate-400">Your spending timeline visually grouped by date.</p>
+                </div>
+                <div id="calendar-list">
+                    </div>
+            </section>
+
+            <section id="view-reports" class="view-section space-y-6">
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <div class="bg-white dark:bg-slate-800 p-6 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700">
+                        <h3 class="text-lg font-bold text-dark dark:text-white mb-4">Expense by Category (This Month)</h3>
+                        <div class="relative h-64 flex justify-center">
+                            <canvas id="expensePieChart"></canvas>
+                        </div>
+                    </div>
+                    
+                    <div class="bg-white dark:bg-slate-800 p-6 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700">
+                        <h3 class="text-lg font-bold text-dark dark:text-white mb-4">Income vs Expense (Last 6 Months)</h3>
+                        <div class="relative h-64 w-full">
+                            <canvas id="monthlyBarChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <section id="view-settings" class="view-section space-y-6">
+                <div class="bg-white dark:bg-slate-800 p-6 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 max-w-2xl">
+                    
+                    <h3 class="text-lg font-bold text-dark dark:text-white mb-6 border-b border-slate-200 dark:border-slate-700 pb-4">Preferences</h3>
+                    <div class="flex justify-between items-center p-4 bg-slate-50 dark:bg-slate-700 rounded-xl mb-8">
+                        <div>
+                            <p class="font-medium text-dark dark:text-white">Dark Mode</p>
+                            <p class="text-sm text-slate-500 dark:text-slate-300">Toggle dark theme appearance.</p>
+                        </div>
+                        <button onclick="App.ui.toggleTheme()" class="w-12 h-6 bg-slate-300 dark:bg-primary rounded-full relative transition-colors focus:outline-none">
+                            <div class="w-5 h-5 bg-white rounded-full absolute top-0.5 left-0.5 dark:translate-x-6 transition-transform shadow-sm"></div>
+                        </button>
+                    </div>
+
+                    <h3 class="text-lg font-bold text-dark dark:text-white mb-6 border-b border-slate-200 dark:border-slate-700 pb-4">Data Management</h3>
+                    <div class="space-y-4 mb-8">
+                        <div class="flex justify-between items-center p-4 bg-slate-50 dark:bg-slate-700 rounded-xl">
+                            <div>
+                                <p class="font-medium text-dark dark:text-white">Export Data</p>
+                                <p class="text-sm text-slate-500 dark:text-slate-300">Download your data as JSON format.</p>
+                            </div>
+                            <button onclick="App.handlers.exportData()" class="px-4 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-600 rounded-lg text-sm font-medium hover:bg-slate-100 dark:hover:bg-slate-600 transition dark:text-white">
+                                Export JSON
+                            </button>
+                        </div>
+                        
+                        <div class="flex justify-between items-center p-4 bg-rose-50 dark:bg-rose-900/20 rounded-xl border border-rose-100 dark:border-rose-900/30">
+                            <div>
+                                <p class="font-medium text-rose-700 dark:text-rose-400">Reset Data</p>
+                                <p class="text-sm text-rose-500 dark:text-rose-500/80">Warning: This will delete all your transactions and accounts.</p>
+                            </div>
+                            <button onclick="App.handlers.resetData()" class="px-4 py-2 bg-rose-600 text-white rounded-lg text-sm font-medium hover:bg-rose-700 transition">
+                                Factory Reset
+                            </button>
+                        </div>
+                    </div>
+
+                    <h3 class="text-lg font-bold text-dark dark:text-white mb-4 border-b border-slate-200 dark:border-slate-700 pb-4">Categories Management</h3>
+                    <p class="text-sm text-slate-500 dark:text-slate-400 mb-4">You can add custom categories for your transactions.</p>
+                    <div class="flex gap-2 mb-6">
+                        <button onclick="App.ui.openModal('modal-category')" class="px-4 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm font-medium hover:bg-slate-50 dark:hover:bg-slate-700 transition flex items-center gap-2 dark:text-white">
+                            <i class="ph-bold ph-plus"></i> New Category
+                        </button>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <h4 class="font-medium text-sm text-slate-500 dark:text-slate-400 mb-2 uppercase tracking-wider">Income Categories</h4>
+                            <div id="settings-income-cats" class="space-y-2"></div>
+                        </div>
+                        <div>
+                            <h4 class="font-medium text-sm text-slate-500 dark:text-slate-400 mb-2 uppercase tracking-wider">Expense Categories</h4>
+                            <div id="settings-expense-cats" class="space-y-2"></div>
+                        </div>
+                    </div>
+
+                </div>
+            </section>
+
+        </div>
+    </main>
+
+    <div id="toast-container" class="fixed bottom-4 right-4 md:bottom-10 md:right-10 z-[60] flex flex-col gap-2 pointer-events-none"></div>
+
+    <div id="modal-transaction" class="modal fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-sm items-center justify-center p-4">
+        <div class="modal-content bg-white dark:bg-slate-800 rounded-2xl shadow-xl w-full max-w-md overflow-hidden border border-slate-100 dark:border-slate-700">
+            <div class="p-4 border-b border-slate-100 dark:border-slate-700 flex justify-between items-center">
+                <h3 id="modal-transaction-title" class="font-bold text-lg text-dark dark:text-white">Add Transaction</h3>
+                <button onclick="App.ui.closeModal('modal-transaction')" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"><i class="ph-bold ph-x text-xl"></i></button>
+            </div>
+            
+            <form id="form-transaction" class="p-6 space-y-4">
+                <div class="flex p-1 bg-slate-100 dark:bg-slate-900 rounded-xl gap-1">
+                    <label class="flex-1 text-center cursor-pointer">
+                        <input type="radio" name="txType" value="expense" class="peer sr-only" checked onchange="App.ui.updateTransactionForm()">
+                        <div class="py-2 text-sm font-medium rounded-lg peer-checked:bg-white dark:peer-checked:bg-slate-800 peer-checked:text-expense peer-checked:shadow-sm text-slate-500 dark:text-slate-400 transition-all">Expense</div>
+                    </label>
+                    <label class="flex-1 text-center cursor-pointer">
+                        <input type="radio" name="txType" value="income" class="peer sr-only" onchange="App.ui.updateTransactionForm()">
+                        <div class="py-2 text-sm font-medium rounded-lg peer-checked:bg-white dark:peer-checked:bg-slate-800 peer-checked:text-income peer-checked:shadow-sm text-slate-500 dark:text-slate-400 transition-all">Income</div>
+                    </label>
+                    <label class="flex-1 text-center cursor-pointer">
+                        <input type="radio" name="txType" value="transfer" class="peer sr-only" onchange="App.ui.updateTransactionForm()">
+                        <div class="py-2 text-sm font-medium rounded-lg peer-checked:bg-white dark:peer-checked:bg-slate-800 peer-checked:text-primary peer-checked:shadow-sm text-slate-500 dark:text-slate-400 transition-all">Transfer</div>
+                    </label>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Amount (IDR)</label>
+                    <div class="relative">
+                        <span class="absolute left-4 top-1/2 -translate-y-1/2 font-medium text-slate-500">Rp</span>
+                        <input type="number" id="txAmount" required min="1" class="w-full pl-12 pr-4 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary font-bold text-lg dark:text-white">
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Date</label>
+                        <input type="date" id="txDate" required class="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary text-sm dark:text-white [color-scheme:light_dark]">
+                    </div>
+                    <div id="wrapper-category">
+                        <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Category</label>
+                        <select id="txCategory" class="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary text-sm dark:text-white">
+                            </select>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1" id="label-account">Account</label>
+                    <select id="txAccount" required class="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary text-sm dark:text-white">
+                        </select>
+                </div>
+
+                <div id="wrapper-toAccount" class="hidden">
+                    <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">To Account</label>
+                    <select id="txToAccount" class="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary text-sm dark:text-white">
+                        </select>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Note (Optional)</label>
+                    <input type="text" id="txNote" placeholder="What was this for?" class="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary text-sm dark:text-white">
+                </div>
+
+                <button type="submit" class="w-full bg-primary hover:bg-blue-600 text-white py-3 rounded-xl font-medium transition-colors mt-2">
+                    Save Transaction
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <div id="modal-account" class="modal fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-sm items-center justify-center p-4">
+        <div class="modal-content bg-white dark:bg-slate-800 rounded-2xl shadow-xl w-full max-w-md overflow-hidden border border-slate-100 dark:border-slate-700">
+            <div class="p-4 border-b border-slate-100 dark:border-slate-700 flex justify-between items-center">
+                <h3 class="font-bold text-lg text-dark dark:text-white">Add New Account</h3>
+                <button onclick="App.ui.closeModal('modal-account')" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"><i class="ph-bold ph-x text-xl"></i></button>
+            </div>
+            <form id="form-account" class="p-6 space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Account Name</label>
+                    <input type="text" id="accName" required placeholder="e.g., BCA, GoPay, Cash" class="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary text-sm dark:text-white">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Account Type</label>
+                    <select id="accType" required class="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary text-sm dark:text-white">
+                        <option value="bank">Bank Account</option>
+                        <option value="ewallet">E-Wallet</option>
+                        <option value="cash">Cash / Physical Wallet</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Initial Balance (Rp)</label>
+                    <input type="number" id="accBalance" required min="0" value="0" class="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary text-sm dark:text-white">
+                </div>
+                <button type="submit" class="w-full bg-primary hover:bg-blue-600 text-white py-3 rounded-xl font-medium transition-colors mt-2">
+                    Create Account
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <div id="modal-category" class="modal fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-sm items-center justify-center p-4">
+        <div class="modal-content bg-white dark:bg-slate-800 rounded-2xl shadow-xl w-full max-w-md overflow-hidden border border-slate-100 dark:border-slate-700">
+            <div class="p-4 border-b border-slate-100 dark:border-slate-700 flex justify-between items-center">
+                <h3 class="font-bold text-lg text-dark dark:text-white">Add Category</h3>
+                <button onclick="App.ui.closeModal('modal-category')" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"><i class="ph-bold ph-x text-xl"></i></button>
+            </div>
+            <form id="form-category" class="p-6 space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Category Name</label>
+                    <input type="text" id="catName" required placeholder="e.g., Subscriptions, Coffee" class="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary text-sm dark:text-white">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Type</label>
+                    <select id="catType" required class="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary text-sm dark:text-white">
+                        <option value="expense">Expense</option>
+                        <option value="income">Income</option>
+                    </select>
+                </div>
+                <button type="submit" class="w-full bg-primary hover:bg-blue-600 text-white py-3 rounded-xl font-medium transition-colors mt-2">
+                    Save Category
+                </button>
+            </form>
+        </div>
+    </div>
+
+
+    <script>
+        const App = {
+            state: {
+                accounts: [],
+                categories: [],
+                transactions: [],
+                recurringTransactions: [], // FEATURE 1
+                budgets: [],               // FEATURE 2
+                theme: 'light',            // FEATURE 4
+                charts: { pie: null, bar: null },
+                editingTxId: null 
+            },
+
+            // --- STORAGE MODULE ---
+            storage: {
+                key: 'fintrack_data',
+                load() {
+                    const data = localStorage.getItem(this.key);
+                    if (data) {
+                        const parsed = JSON.parse(data);
+                        App.state.accounts = parsed.accounts || [];
+                        App.state.categories = parsed.categories || [];
+                        App.state.transactions = parsed.transactions || [];
+                        App.state.recurringTransactions = parsed.recurringTransactions || [];
+                        App.state.budgets = parsed.budgets || [];
+                        App.state.theme = parsed.theme || 'light';
+                    } else {
+                        this.seed();
+                    }
+                },
+                save() {
+                    localStorage.setItem(this.key, JSON.stringify({
+                        accounts: App.state.accounts,
+                        categories: App.state.categories,
+                        transactions: App.state.transactions,
+                        recurringTransactions: App.state.recurringTransactions,
+                        budgets: App.state.budgets,
+                        theme: App.state.theme
+                    }));
+                },
+                seed() {
+                    // Default Data
+                    App.state.accounts = [
+                        { id: 'acc1', name: 'Cash Wallet', type: 'cash', initialBalance: 5000000 }
+                    ];
+                    App.state.categories = [
+                        { id: 'c1', name: 'Food & Dining', type: 'expense', icon: 'ph-fork-knife' },
+                        { id: 'c2', name: 'Transportation', type: 'expense', icon: 'ph-car' },
+                        { id: 'c3', name: 'Shopping', type: 'expense', icon: 'ph-shopping-bag' },
+                        { id: 'c4', name: 'Bills & Utilities', type: 'expense', icon: 'ph-lightning' },
+                        { id: 'c5', name: 'Salary', type: 'income', icon: 'ph-money' },
+                        { id: 'c6', name: 'Bonus', type: 'income', icon: 'ph-gift' },
+                    ];
+                    
+                    // Added a sample budget and recurring transaction so features are visible instantly
+                    App.state.budgets = [
+                        { categoryId: 'c1', monthlyLimit: 1500000 }
+                    ];
+                    App.state.recurringTransactions = [
+                        { id: 'rt1', type: 'expense', amount: 350000, categoryId: 'c4', accountId: 'acc1', note: 'Internet Bill', interval: 'monthly', day: 10, lastGenerated: null }
+                    ];
+
+                    App.state.transactions = [];
+                    this.save();
+                }
+            },
+
+            // --- CALCULATIONS / BUSINESS LOGIC ---
+            calc: {
+                getAccountBalance(accountId) {
+                    const acc = App.state.accounts.find(a => a.id === accountId);
+                    if (!acc) return 0;
+                    
+                    let balance = parseInt(acc.initialBalance);
+                    
+                    App.state.transactions.forEach(t => {
+                        const amt = parseInt(t.amount);
+                        if (t.type === 'income' && t.accountId === accountId) balance += amt;
+                        if (t.type === 'expense' && t.accountId === accountId) balance -= amt;
+                        if (t.type === 'transfer') {
+                            if (t.accountId === accountId) balance -= amt; // Sender
+                            if (t.toAccountId === accountId) balance += amt; // Receiver
+                        }
+                    });
+                    return balance;
+                },
+                
+                getTotalBalance() {
+                    return App.state.accounts.reduce((sum, acc) => sum + this.getAccountBalance(acc.id), 0);
+                },
+
+                getMonthStats(year, month) {
+                    let income = 0;
+                    let expense = 0;
+                    
+                    App.state.transactions.forEach(t => {
+                        const date = new Date(t.date);
+                        if (date.getFullYear() === year && date.getMonth() === month) {
+                            if (t.type === 'income') income += parseInt(t.amount);
+                            if (t.type === 'expense') expense += parseInt(t.amount);
+                        }
+                    });
+                    return { income, expense };
+                },
+
+                getCategoryIcon(catId, type) {
+                    if (type === 'transfer') return 'ph-arrows-left-right';
+                    const cat = App.state.categories.find(c => c.id === catId);
+                    return cat ? cat.icon : 'ph-tag';
+                },
+
+                getCategoryName(catId, type) {
+                    if (type === 'transfer') return 'Transfer';
+                    const cat = App.state.categories.find(c => c.id === catId);
+                    return cat ? cat.name : 'Uncategorized';
+                },
+
+                getAccountName(accId) {
+                    const acc = App.state.accounts.find(a => a.id === accId);
+                    return acc ? acc.name : 'Unknown';
+                },
+
+                // FEATURE 1: Process Recurring Transactions
+                processRecurring() {
+                    const today = new Date();
+                    let changed = false;
+
+                    App.state.recurringTransactions.forEach(rt => {
+                        if (rt.interval === 'monthly' && today.getDate() >= rt.day) {
+                            const currentPeriod = `${today.getFullYear()}-${today.getMonth()}`;
+                            
+                            if (rt.lastGenerated !== currentPeriod) {
+                                App.state.transactions.push({
+                                    id: App.utils.generateId(),
+                                    type: rt.type,
+                                    amount: rt.amount,
+                                    date: new Date(today.getFullYear(), today.getMonth(), rt.day).toISOString().split('T')[0], // Place on correct day
+                                    accountId: rt.accountId,
+                                    categoryId: rt.categoryId,
+                                    note: (rt.note || 'Recurring') + ' (Auto)'
+                                });
+                                rt.lastGenerated = currentPeriod;
+                                changed = true;
+                            }
+                        }
+                    });
+
+                    if (changed) App.storage.save();
+                }
+            },
+
+            // --- UTILS ---
+            utils: {
+                formatCurrency(amount) {
+                    return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(amount);
+                },
+                formatDate(dateString) {
+                    const options = { year: 'numeric', month: 'short', day: 'numeric' };
+                    return new Date(dateString).toLocaleDateString('en-US', options);
+                },
+                generateId() {
+                    return Math.random().toString(36).substr(2, 9);
+                }
+            },
+
+            // --- VALIDATION MODULE ---
+            validators: {
+                transaction(tx) {
+                    if (!tx.amount || tx.amount <= 0) return "Amount must be greater than zero.";
+                    if (!tx.date) return "Date is required.";
+                    if (!tx.accountId) return "Please select an account.";
+                    
+                    if (tx.type === 'transfer') {
+                        if (!tx.toAccountId) return "Please select a destination account.";
+                        if (tx.accountId === tx.toAccountId) return "Cannot transfer to the same account.";
+                    } else {
+                        if (!tx.categoryId) return "Please select a category.";
+                    }
+                    
+                    return null; // Valid
+                }
+            },
+
+            // --- REUSABLE UI COMPONENTS ---
+            components: {
+                transactionItem(t) {
+                    let iconBg, iconColor, amountColor, sign, titleText;
+                    
+                    if (t.type === 'income') {
+                        iconBg = 'bg-emerald-50 dark:bg-emerald-900/30'; iconColor = 'text-income'; amountColor = 'text-income'; sign = '+';
+                        titleText = App.calc.getCategoryName(t.categoryId, t.type);
+                    } else if (t.type === 'expense') {
+                        iconBg = 'bg-rose-50 dark:bg-rose-900/30'; iconColor = 'text-expense'; amountColor = 'text-dark dark:text-white'; sign = '-';
+                        titleText = App.calc.getCategoryName(t.categoryId, t.type);
+                    } else {
+                        iconBg = 'bg-blue-50 dark:bg-blue-900/30'; iconColor = 'text-primary'; amountColor = 'text-slate-500 dark:text-slate-400'; sign = '';
+                        titleText = `Transfer to ${App.calc.getAccountName(t.toAccountId)}`;
+                    }
+
+                    const accName = App.calc.getAccountName(t.accountId);
+                    const iconClass = App.calc.getCategoryIcon(t.categoryId, t.type);
+
+                    return `
+                        <div class="flex justify-between items-center p-4 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition group">
+                            <div class="flex items-center gap-4">
+                                <div class="w-12 h-12 rounded-xl ${iconBg} ${iconColor} flex items-center justify-center">
+                                    <i class="ph-bold ${iconClass} text-xl"></i>
+                                </div>
+                                <div>
+                                    <p class="font-bold text-dark dark:text-white text-sm md:text-base">${titleText}</p>
+                                    <div class="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                                        <span>${App.utils.formatDate(t.date)}</span>
+                                        <span>•</span>
+                                        <span class="bg-slate-100 dark:bg-slate-700 px-2 py-0.5 rounded-md">${accName}</span>
+                                        ${t.note ? `<span class="hidden md:inline">• ${t.note}</span>` : ''}
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="text-right flex items-center gap-4">
+                                <span class="font-bold ${amountColor}">${sign}${App.utils.formatCurrency(t.amount)}</span>
+                                <div class="opacity-0 group-hover:opacity-100 transition hidden md:flex items-center gap-2">
+                                    <button onclick="App.handlers.editTransaction('${t.id}')" class="text-slate-300 dark:text-slate-500 hover:text-primary transition" title="Edit">
+                                        <i class="ph-fill ph-pencil-simple text-lg"></i>
+                                    </button>
+                                    <button onclick="App.handlers.deleteTransaction('${t.id}')" class="text-slate-300 dark:text-slate-500 hover:text-rose-500 transition" title="Delete">
+                                        <i class="ph-fill ph-trash text-lg"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                },
+                
+                accountCard(acc) {
+                    const bal = App.calc.getAccountBalance(acc.id);
+                    const icon = acc.type === 'bank' ? 'ph-bank' : (acc.type === 'ewallet' ? 'ph-device-mobile' : 'ph-wallet');
+                    return `
+                        <div class="bg-white dark:bg-slate-800 p-5 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 flex flex-col justify-between h-32 hover:border-primary/30 transition group">
+                            <div class="flex justify-between items-start">
+                                <div class="flex items-center gap-3">
+                                    <div class="w-10 h-10 rounded-full bg-blue-50 dark:bg-blue-900/30 text-primary flex items-center justify-center">
+                                        <i class="ph-bold ${icon} text-lg"></i>
+                                    </div>
+                                    <div>
+                                        <h4 class="font-bold text-dark dark:text-white">${acc.name}</h4>
+                                        <p class="text-xs text-slate-400 capitalize">${acc.type}</p>
+                                    </div>
+                                </div>
+                                <button onclick="App.handlers.deleteAccount('${acc.id}')" class="text-slate-300 dark:text-slate-600 hover:text-rose-500 opacity-0 group-hover:opacity-100 transition" title="Delete Account">
+                                    <i class="ph-fill ph-trash"></i>
+                                </button>
+                            </div>
+                            <div>
+                                <p class="text-2xl font-bold text-dark dark:text-white">${App.utils.formatCurrency(bal)}</p>
+                            </div>
+                        </div>
+                    `;
+                },
+
+                // FEATURE 2: Budget UI Component
+                budgetCard(budget) {
+                    const now = new Date();
+                    const spent = App.state.transactions.filter(t => {
+                        const d = new Date(t.date);
+                        return t.categoryId === budget.categoryId && 
+                               t.type === 'expense' && 
+                               d.getFullYear() === now.getFullYear() && 
+                               d.getMonth() === now.getMonth();
+                    }).reduce((sum, t) => sum + parseInt(t.amount), 0);
+
+                    const catName = App.calc.getCategoryName(budget.categoryId, 'expense');
+                    const percent = Math.min((spent / budget.monthlyLimit) * 100, 100);
+                    const isOver = spent > budget.monthlyLimit;
+
+                    return `
+                        <div class="mb-4">
+                            <div class="flex justify-between text-sm mb-1">
+                                <span class="font-medium text-dark dark:text-white">${catName}</span>
+                                <span class="text-slate-500 dark:text-slate-400">${App.utils.formatCurrency(spent)} / ${App.utils.formatCurrency(budget.monthlyLimit)}</span>
+                            </div>
+                            <div class="w-full bg-slate-100 dark:bg-slate-700 rounded-full h-2.5">
+                                <div class="h-2.5 rounded-full ${isOver ? 'bg-rose-500' : 'bg-primary'}" style="width: ${percent}%"></div>
+                            </div>
+                        </div>
+                    `;
+                }
+            },
+
+            // --- RENDERING / UI MODULE ---
+            render: {
+                all() {
+                    this.dashboard();
+                    this.accounts();
+                    this.transactions();
+                    this.calendar(); // Render Calendar View
+                    this.categoriesSettings();
+                    this.populateSelects();
+                    App.charts.init();
+                },
+
+                dashboard() {
+                    const now = new Date();
+                    const stats = App.calc.getMonthStats(now.getFullYear(), now.getMonth());
+                    
+                    document.getElementById('dash-total-balance').innerText = App.utils.formatCurrency(App.calc.getTotalBalance());
+                    document.getElementById('dash-monthly-income').innerText = App.utils.formatCurrency(stats.income);
+                    document.getElementById('dash-monthly-expense').innerText = App.utils.formatCurrency(stats.expense);
+
+                    // Accounts List
+                    const accHtml = App.state.accounts.slice(0, 3).map(acc => {
+                        const bal = App.calc.getAccountBalance(acc.id);
+                        const icon = acc.type === 'bank' ? 'ph-bank' : (acc.type === 'ewallet' ? 'ph-device-mobile' : 'ph-wallet');
+                        return `
+                            <div class="flex justify-between items-center p-3 hover:bg-slate-50 dark:hover:bg-slate-700/50 rounded-xl transition cursor-pointer" onclick="App.ui.switchView('accounts')">
+                                <div class="flex items-center gap-3">
+                                    <div class="w-10 h-10 rounded-full bg-blue-50 dark:bg-blue-900/30 text-primary flex items-center justify-center">
+                                        <i class="ph-bold ${icon} text-lg"></i>
+                                    </div>
+                                    <span class="font-medium text-dark dark:text-white">${acc.name}</span>
+                                </div>
+                                <span class="font-bold text-dark dark:text-white">${App.utils.formatCurrency(bal)}</span>
+                            </div>
+                        `;
+                    }).join('');
+                    document.getElementById('dash-accounts-list').innerHTML = accHtml || '<p class="text-slate-500 text-sm">No accounts found.</p>';
+
+                    // Budgets List
+                    const budgetHtml = App.state.budgets.map(b => App.components.budgetCard(b)).join('');
+                    document.getElementById('dash-budgets-list').innerHTML = budgetHtml || '<p class="text-slate-500 text-sm">No budgets set.</p>';
+
+                    // Recent Transactions
+                    const sortedTx = [...App.state.transactions].sort((a, b) => new Date(b.date) - new Date(a.date)).slice(0, 5);
+                    const txHtml = sortedTx.map(t => App.components.transactionItem(t)).join('');
+                    document.getElementById('dash-recent-transactions').innerHTML = txHtml || '<p class="text-slate-500 text-sm p-3">No recent transactions.</p>';
+                },
+
+                accounts() {
+                    const grid = document.getElementById('accounts-grid');
+                    grid.innerHTML = App.state.accounts.map(acc => App.components.accountCard(acc)).join('');
+                },
+
+                transactions() {
+                    const search = document.getElementById('filter-search').value.toLowerCase();
+                    const month = document.getElementById('filter-month').value;
+                    const accId = document.getElementById('filter-account').value;
+                    const type = document.getElementById('filter-type').value;
+
+                    let filtered = [...App.state.transactions].sort((a, b) => new Date(b.date) - new Date(a.date));
+
+                    if (search) filtered = filtered.filter(t => (t.note || '').toLowerCase().includes(search));
+                    if (month !== 'all') {
+                        filtered = filtered.filter(t => {
+                            const d = new Date(t.date);
+                            return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}` === month;
+                        });
+                    }
+                    if (accId !== 'all') filtered = filtered.filter(t => t.accountId === accId || t.toAccountId === accId);
+                    if (type !== 'all') filtered = filtered.filter(t => t.type === type);
+
+                    const html = filtered.map(t => App.components.transactionItem(t)).join('');
+                    document.getElementById('transactions-list').innerHTML = html || '<div class="p-8 text-center text-slate-500">No transactions found matching filters.</div>';
+                },
+
+                // FEATURE 3: Calendar View Grouping
+                calendar() {
+                    const grouped = App.state.transactions.reduce((acc, t) => {
+                        acc[t.date] = acc[t.date] || [];
+                        acc[t.date].push(t);
+                        return acc;
+                    }, {});
+
+                    const sortedDates = Object.keys(grouped).sort((a, b) => new Date(b) - new Date(a));
+
+                    const html = sortedDates.map(date => {
+                        const txHtml = grouped[date].map(t => App.components.transactionItem(t)).join('');
+                        const dateStr = App.utils.formatDate(date);
+                        return `
+                            <div class="mb-6">
+                                <h4 class="font-bold text-slate-500 dark:text-slate-400 mb-2 border-b pb-1 border-slate-200 dark:border-slate-700">${dateStr}</h4>
+                                <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 overflow-hidden divide-y divide-slate-100 dark:divide-slate-700">
+                                    ${txHtml}
+                                </div>
+                            </div>
+                        `;
+                    }).join('');
+
+                    document.getElementById('calendar-list').innerHTML = html || '<p class="text-slate-500">No transactions to show.</p>';
+                },
+
+                categoriesSettings() {
+                    const incomes = App.state.categories.filter(c => c.type === 'income');
+                    const expenses = App.state.categories.filter(c => c.type === 'expense');
+
+                    const renderCat = (c) => `
+                        <div class="flex justify-between items-center p-3 bg-slate-50 dark:bg-slate-700 rounded-xl border border-slate-100 dark:border-slate-600">
+                            <div class="flex items-center gap-2 text-dark dark:text-white">
+                                <i class="ph ${c.icon}"></i> <span>${c.name}</span>
+                            </div>
+                            <button onclick="App.handlers.deleteCategory('${c.id}')" class="text-slate-400 hover:text-rose-500"><i class="ph-bold ph-trash"></i></button>
+                        </div>
+                    `;
+
+                    document.getElementById('settings-income-cats').innerHTML = incomes.map(renderCat).join('');
+                    document.getElementById('settings-expense-cats').innerHTML = expenses.map(renderCat).join('');
+                },
+
+                populateSelects() {
+                    const months = new Set();
+                    App.state.transactions.forEach(t => {
+                        const d = new Date(t.date);
+                        months.add(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`);
+                    });
+                    const monthSelect = document.getElementById('filter-month');
+                    const sortedMonths = Array.from(months).sort().reverse();
+                    monthSelect.innerHTML = '<option value="all">All Months</option>' + 
+                        sortedMonths.map(m => {
+                            const [y, mo] = m.split('-');
+                            const date = new Date(y, mo - 1);
+                            const label = date.toLocaleString('default', { month: 'short', year: 'numeric' });
+                            return `<option value="${m}">${label}</option>`;
+                        }).join('');
+
+                    const accHtml = App.state.accounts.map(a => `<option value="${a.id}">${a.name}</option>`).join('');
+                    
+                    document.getElementById('filter-account').innerHTML = '<option value="all">All Accounts</option>' + accHtml;
+                    document.getElementById('txAccount').innerHTML = accHtml;
+                    document.getElementById('txToAccount').innerHTML = accHtml;
+                    
+                    if(App.state.accounts.length > 1) {
+                         document.getElementById('txToAccount').value = App.state.accounts[1].id;
+                    }
+
+                    App.ui.updateTransactionForm();
+                }
+            },
+
+            // --- UI INTERACTIONS ---
+            ui: {
+                switchView(viewId) {
+                    document.querySelectorAll('.nav-btn').forEach(btn => {
+                        btn.classList.remove('active');
+                        btn.setAttribute('data-active', 'false');
+                        if (btn.dataset.target === viewId) {
+                            btn.classList.add('active');
+                            btn.setAttribute('data-active', 'true');
+                        }
+                    });
+
+                    document.querySelectorAll('.view-section').forEach(view => {
+                        view.classList.remove('active');
+                    });
+                    document.getElementById(`view-${viewId}`).classList.add('active');
+                    
+                    const title = viewId.charAt(0).toUpperCase() + viewId.slice(1);
+                    document.getElementById('page-title').innerText = title;
+                    document.getElementById('mobile-page-title').innerText = title;
+
+                    if (viewId === 'reports') App.charts.update();
+                    if (viewId === 'transactions') App.render.transactions();
+                },
+
+                showToast(message, type = 'success') {
+                    const container = document.getElementById('toast-container');
+                    const toast = document.createElement('div');
+                    const bg = type === 'error' ? 'bg-rose-500' : 'bg-emerald-500';
+                    const icon = type === 'error' ? 'ph-warning-circle' : 'ph-check-circle';
+                    
+                    toast.className = `${bg} text-white px-4 py-3 rounded-xl shadow-lg flex items-center gap-2 toast-enter pointer-events-auto`;
+                    toast.innerHTML = `<i class="ph-bold ${icon} text-lg"></i> <span class="font-medium text-sm">${message}</span>`;
+                    
+                    container.appendChild(toast);
+                    
+                    setTimeout(() => {
+                        toast.classList.replace('toast-enter', 'toast-exit');
+                        setTimeout(() => toast.remove(), 300);
+                    }, 3000);
+                },
+
+                openModal(id) {
+                    document.getElementById(id).classList.add('active');
+                    if(id === 'modal-transaction') {
+                        if(App.state.accounts.length === 0) {
+                            this.showToast("Please create an account first.", "error");
+                            this.closeModal(id);
+                            this.switchView('accounts');
+                        }
+                    }
+                },
+                closeModal(id) {
+                    document.getElementById(id).classList.remove('active');
+                    const form = document.querySelector(`#${id} form`);
+                    if(form) {
+                        form.reset();
+                        if(id === 'modal-transaction') {
+                            App.state.editingTxId = null;
+                            document.getElementById('modal-transaction-title').innerText = 'Add Transaction';
+                            document.querySelector('input[name="txType"][value="expense"]').checked = true;
+                            this.updateTransactionForm();
+                        }
+                    }
+                },
+
+                updateTransactionForm() {
+                    const type = document.querySelector('input[name="txType"]:checked').value;
+                    const catSelect = document.getElementById('txCategory');
+                    const catWrapper = document.getElementById('wrapper-category');
+                    const toAccWrapper = document.getElementById('wrapper-toAccount');
+                    const accLabel = document.getElementById('label-account');
+
+                    if (type === 'transfer') {
+                        catWrapper.classList.add('hidden');
+                        toAccWrapper.classList.remove('hidden');
+                        accLabel.innerText = "From Account";
+                    } else {
+                        catWrapper.classList.remove('hidden');
+                        toAccWrapper.classList.add('hidden');
+                        accLabel.innerText = "Account";
+                        
+                        const cats = App.state.categories.filter(c => c.type === type);
+                        catSelect.innerHTML = cats.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
+                    }
+                },
+
+                // FEATURE 5: Quick Add Menu logic
+                openQuickAdd(type) {
+                    App.state.editingTxId = null; 
+                    document.getElementById('modal-transaction-title').innerText = 'Add Transaction';
+                    
+                    const radio = document.querySelector(`input[name="txType"][value="${type}"]`);
+                    if (radio) {
+                        radio.checked = true;
+                        this.updateTransactionForm();
+                    }
+                    this.openModal('modal-transaction');
+                },
+
+                // FEATURE 4: Toggle Theme
+                toggleTheme() {
+                    App.state.theme = App.state.theme === 'light' ? 'dark' : 'light';
+                    App.storage.save();
+                    this.applyTheme();
+                },
+
+                applyTheme() {
+                    if (App.state.theme === 'dark') {
+                        document.documentElement.classList.add('dark');
+                    } else {
+                        document.documentElement.classList.remove('dark');
+                    }
+                }
+            },
+
+            // --- CHARTS (Chart.js Wrapper) ---
+            charts: {
+                init() {
+                    Chart.defaults.font.family = "'Inter', sans-serif";
+                    Chart.defaults.color = '#64748b';
+
+                    const ctxPie = document.getElementById('expensePieChart').getContext('2d');
+                    this.pie = new Chart(ctxPie, {
+                        type: 'doughnut',
+                        data: { labels: [], datasets: [{ data: [], backgroundColor: [], borderWidth: 0 }] },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            cutout: '70%',
+                            plugins: {
+                                legend: { position: 'right', labels: { usePointStyle: true, boxWidth: 8 } }
+                            }
+                        }
+                    });
+
+                    const ctxBar = document.getElementById('monthlyBarChart').getContext('2d');
+                    this.bar = new Chart(ctxBar, {
+                        type: 'bar',
+                        data: { labels: [], datasets: [] },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            scales: {
+                                y: { beginAtZero: true, grid: { borderDash: [5, 5] }, ticks: { callback: (val) => 'Rp ' + (val/1000) + 'k' } },
+                                x: { grid: { display: false } }
+                            },
+                            plugins: {
+                                legend: { position: 'top', labels: { usePointStyle: true, boxWidth: 8 } }
+                            }
+                        }
+                    });
+                },
+
+                update() {
+                    const now = new Date();
+                    const currentYear = now.getFullYear();
+                    const currentMonth = now.getMonth();
+                    
+                    const expenses = App.state.transactions.filter(t => {
+                        const d = new Date(t.date);
+                        return t.type === 'expense' && d.getFullYear() === currentYear && d.getMonth() === currentMonth;
+                    });
+
+                    const catTotals = {};
+                    expenses.forEach(t => {
+                        catTotals[t.categoryId] = (catTotals[t.categoryId] || 0) + parseInt(t.amount);
+                    });
+
+                    const colors = ['#f43f5e', '#f97316', '#eab308', '#8b5cf6', '#ec4899', '#06b6d4'];
+                    
+                    this.pie.data.labels = Object.keys(catTotals).map(id => App.calc.getCategoryName(id, 'expense'));
+                    this.pie.data.datasets[0].data = Object.values(catTotals);
+                    this.pie.data.datasets[0].backgroundColor = colors.slice(0, Object.keys(catTotals).length);
+                    this.pie.update();
+
+                    const labels = [];
+                    const incomeData = [];
+                    const expenseData = [];
+
+                    for (let i = 5; i >= 0; i--) {
+                        const d = new Date(currentYear, currentMonth - i, 1);
+                        labels.push(d.toLocaleString('default', { month: 'short' }));
+                        const stats = App.calc.getMonthStats(d.getFullYear(), d.getMonth());
+                        incomeData.push(stats.income);
+                        expenseData.push(stats.expense);
+                    }
+
+                    this.bar.data.labels = labels;
+                    this.bar.data.datasets = [
+                        { label: 'Income', data: incomeData, backgroundColor: '#10b981', borderRadius: 4 },
+                        { label: 'Expense', data: expenseData, backgroundColor: '#f43f5e', borderRadius: 4 }
+                    ];
+                    this.bar.update();
+                }
+            },
+
+            // --- EVENT HANDLERS ---
+            handlers: {
+                init() {
+                    document.getElementById('filter-search').addEventListener('input', () => App.render.transactions());
+                    document.getElementById('filter-month').addEventListener('change', () => App.render.transactions());
+                    document.getElementById('filter-account').addEventListener('change', () => App.render.transactions());
+                    document.getElementById('filter-type').addEventListener('change', () => App.render.transactions());
+
+                    document.getElementById('form-transaction').addEventListener('submit', this.handleTransactionSubmit);
+                    document.getElementById('form-account').addEventListener('submit', this.handleAccountSubmit);
+                    document.getElementById('form-category').addEventListener('submit', this.handleCategorySubmit);
+                },
+
+                handleTransactionSubmit(e) {
+                    e.preventDefault();
+                    const type = document.querySelector('input[name="txType"]:checked').value;
+                    
+                    const txData = {
+                        id: App.state.editingTxId || App.utils.generateId(),
+                        type,
+                        amount: parseInt(document.getElementById('txAmount').value),
+                        date: document.getElementById('txDate').value,
+                        accountId: document.getElementById('txAccount').value,
+                        note: document.getElementById('txNote').value
+                    };
+
+                    if (type === 'transfer') {
+                        txData.toAccountId = document.getElementById('txToAccount').value;
+                        txData.categoryId = null;
+                    } else {
+                        txData.categoryId = document.getElementById('txCategory').value;
+                    }
+
+                    const validationError = App.validators.transaction(txData);
+                    if (validationError) {
+                        App.ui.showToast(validationError, 'error');
+                        return;
+                    }
+
+                    if (App.state.editingTxId) {
+                        const index = App.state.transactions.findIndex(t => t.id === App.state.editingTxId);
+                        if(index !== -1) App.state.transactions[index] = txData;
+                        App.ui.showToast('Transaction updated successfully');
+                    } else {
+                        App.state.transactions.push(txData);
+                        App.ui.showToast('Transaction added successfully');
+                    }
+                    
+                    App.storage.save();
+                    App.render.all();
+                    App.ui.closeModal('modal-transaction');
+                },
+
+                editTransaction(id) {
+                    const tx = App.state.transactions.find(t => t.id === id);
+                    if (!tx) return;
+
+                    App.state.editingTxId = id;
+                    document.getElementById('modal-transaction-title').innerText = 'Edit Transaction';
+                    
+                    document.querySelector(`input[name="txType"][value="${tx.type}"]`).checked = true;
+                    App.ui.updateTransactionForm(); 
+                    
+                    document.getElementById('txAmount').value = tx.amount;
+                    document.getElementById('txDate').value = tx.date;
+                    document.getElementById('txAccount').value = tx.accountId;
+                    document.getElementById('txNote').value = tx.note || '';
+                    
+                    if (tx.type === 'transfer') {
+                        document.getElementById('txToAccount').value = tx.toAccountId;
+                    } else {
+                        document.getElementById('txCategory').value = tx.categoryId;
+                    }
+
+                    App.ui.openModal('modal-transaction');
+                },
+
+                handleAccountSubmit(e) {
+                    e.preventDefault();
+                    const acc = {
+                        id: App.utils.generateId(),
+                        name: document.getElementById('accName').value,
+                        type: document.getElementById('accType').value,
+                        initialBalance: parseInt(document.getElementById('accBalance').value) || 0
+                    };
+                    App.state.accounts.push(acc);
+                    App.storage.save();
+                    App.render.all();
+                    App.ui.closeModal('modal-account');
+                },
+
+                handleCategorySubmit(e) {
+                    e.preventDefault();
+                    const cat = {
+                        id: App.utils.generateId(),
+                        name: document.getElementById('catName').value,
+                        type: document.getElementById('catType').value,
+                        icon: 'ph-tag' 
+                    };
+                    App.state.categories.push(cat);
+                    App.storage.save();
+                    App.render.all();
+                    App.ui.closeModal('modal-category');
+                },
+
+                deleteTransaction(id) {
+                    if(confirm("Delete this transaction?")) {
+                        App.state.transactions = App.state.transactions.filter(t => t.id !== id);
+                        App.storage.save();
+                        App.render.all();
+                        App.ui.showToast('Transaction deleted');
+                    }
+                },
+
+                deleteAccount(id) {
+                    if(confirm("Delete this account? This will also delete all associated transactions.")) {
+                        App.state.accounts = App.state.accounts.filter(a => a.id !== id);
+                        App.state.transactions = App.state.transactions.filter(t => t.accountId !== id && t.toAccountId !== id);
+                        App.storage.save();
+                        App.render.all();
+                    }
+                },
+
+                deleteCategory(id) {
+                    if(confirm("Delete this category? Transactions using it will be marked Uncategorized.")) {
+                        App.state.categories = App.state.categories.filter(c => c.id !== id);
+                        App.state.transactions.forEach(t => { if(t.categoryId === id) t.categoryId = null; });
+                        App.storage.save();
+                        App.render.all();
+                    }
+                },
+
+                exportData() {
+                    const dataStr = JSON.stringify(App.state, null, 2);
+                    const blob = new Blob([dataStr], { type: "application/json" });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `fintrack_backup_${new Date().toISOString().split('T')[0]}.json`;
+                    a.click();
+                    URL.revokeObjectURL(url);
+                },
+
+                resetData() {
+                    if(confirm("CRITICAL WARNING: This will erase ALL your data. Are you absolutely sure?")) {
+                        localStorage.removeItem(App.storage.key);
+                        App.storage.seed(); 
+                        App.render.all();
+                        alert("Data has been reset.");
+                    }
+                }
+            },
+
+            // Boot
+            init() {
+                this.storage.load();
+                this.calc.processRecurring(); // FEATURE 1 trigger
+                this.ui.applyTheme();         // FEATURE 4 trigger
+                this.handlers.init();
+                this.render.all();
+                
+                document.getElementById('txDate').valueAsDate = new Date();
+            }
+        };
+
+        // Run application on load
+        document.addEventListener('DOMContentLoaded', () => App.init());
+
+        // Register Service Worker for PWA
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('./sw.js')
+                    .then(registration => {
+                        console.log('ServiceWorker registered successfully with scope: ', registration.scope);
+                    })
+                    .catch(error => {
+                        console.log('ServiceWorker registration failed: ', error);
+                    });
+            });
+        }
+
+    </script>
+</body>
+</html>
